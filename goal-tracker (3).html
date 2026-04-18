@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$85K Goal Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f0e; --surface:#141714; --surface2:#1a1d1a;
+    --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+    --accent:#39e07a; --accent-dim:rgba(57,224,122,0.12); --accent-dimmer:rgba(57,224,122,0.06);
+    --danger:#ff5e5e; --danger-dim:rgba(255,94,94,0.1);
+    --text:#e8ede9; --muted:#6b7a6d; --muted2:#4a564c;
+    --mono:'DM Mono',monospace; --sans:'Sora',sans-serif;
+    --radius:12px; --radius-sm:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh;line-height:1.6;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(57,224,122,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(57,224,122,0.015) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+  .app{max-width:900px;margin:0 auto;padding:2rem 1rem 4rem;position:relative;z-index:1;}
+
+  .sync-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;margin-bottom:1.25rem;gap:10px;flex-wrap:wrap;}
+  .sync-status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);flex-shrink:0;}
+  .sync-dot.synced{background:var(--accent);}
+  .sync-dot.syncing{background:#f5c542;animation:pulse 1s infinite;}
+  .sync-dot.error{background:var(--danger);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+  .sync-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .sync-btn{background:var(--accent-dim);border:1px solid rgba(57,224,122,0.25);border-radius:var(--radius-sm);color:var(--accent);font-size:12px;padding:5px 12px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;display:flex;align-items:center;gap:6px;}
+  .sync-btn:hover{background:rgba(57,224,122,0.2);}
+  .sync-btn.secondary{background:transparent;border-color:var(--border2);color:var(--muted);}
+  .sync-btn.secondary:hover{color:var(--text);background:var(--surface2);}
+
+  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;}
+  .header-left h1{font-family:var(--mono);font-size:28px;font-weight:500;color:var(--accent);letter-spacing:-0.5px;}
+  .header-left p{font-size:13px;color:var(--muted);margin-top:2px;font-weight:300;}
+  .header-badge{background:var(--accent-dim);border:1px solid rgba(57,224,122,0.2);color:var(--accent);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:99px;white-space:nowrap;margin-top:6px;}
+
+  .nav-tabs{display:flex;gap:4px;margin-bottom:1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:5px;}
+  .nav-tab{flex:1;text-align:center;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all 0.2s;border:none;background:transparent;font-family:var(--sans);}
+  .nav-tab:hover{color:var(--text);}
+  .nav-tab.active{background:var(--surface2);color:var(--accent);border:1px solid rgba(57,224,122,0.2);}
+  .tab-count{font-size:10px;font-family:var(--mono);background:var(--accent-dim);color:var(--accent);border-radius:99px;padding:1px 6px;margin-left:5px;}
+
+  .page{display:none;} .page.active{display:block;}
+
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem;}
+  .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;transition:border-color 0.2s;}
+  .metric:hover{border-color:var(--border2);}
+  .metric-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);font-weight:500;margin-bottom:6px;}
+  .metric-value{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--text);}
+  .metric-value.green{color:var(--accent);} .metric-value.red{color:var(--danger);}
+
+  .progress-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1.5rem;}
+  .progress-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .progress-header span{font-size:12px;color:var(--muted);font-family:var(--mono);}
+  .progress-header strong{font-family:var(--mono);font-size:13px;color:var(--accent);}
+  .progress-bar{height:6px;background:var(--surface2);border-radius:99px;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#7ff5ad);border-radius:99px;transition:width 0.5s cubic-bezier(0.4,0,0.2,1);position:relative;}
+  .progress-fill::after{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:10px;height:10px;background:#7ff5ad;border-radius:50%;box-shadow:0 0 8px rgba(127,245,173,0.8);}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr;}}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;}
+  .card-title{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:500;margin-bottom:1rem;}
+
+  .form-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .form-row label{font-size:12px;color:var(--muted);min-width:110px;flex-shrink:0;}
+  input[type="text"],input[type="number"],input[type="date"]{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color 0.2s;min-width:0;}
+  input:focus{border-color:rgba(57,224,122,0.4);}
+  input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.5);cursor:pointer;}
+
+  .tabs{display:flex;gap:6px;margin-bottom:1rem;}
+  .tab-btn{background:transparent;border:1px solid var(--border);border-radius:99px;color:var(--muted);font-family:var(--sans);font-size:12px;padding:5px 14px;cursor:pointer;transition:all 0.2s;}
+  .tab-btn:hover{border-color:var(--border2);color:var(--text);}
+  .tab-btn.active{background:var(--accent-dim);border-color:rgba(57,224,122,0.3);color:var(--accent);}
+  .hourly-result{font-family:var(--mono);font-size:12px;color:var(--accent);margin:6px 0 10px;min-height:18px;}
+
+  .btn{background:transparent;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 18px;cursor:pointer;transition:all 0.15s;}
+  .btn:hover{background:var(--surface2);} .btn:active{transform:scale(0.98);}
+  .btn-accent{background:var(--accent-dim);border-color:rgba(57,224,122,0.3);color:var(--accent);font-weight:500;}
+  .btn-accent:hover{background:rgba(57,224,122,0.2);}
+  .btn-sm{padding:3px 8px;font-size:11px;border-radius:6px;}
+
+  .entry-msg{font-size:12px;font-family:var(--mono);color:var(--accent);margin-top:8px;min-height:16px;}
+
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+  .cal-nav-title{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--text);}
+  .cal-headers{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px;}
+  .cal-hdr{text-align:center;font-size:10px;color:var(--muted2);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;padding:4px 0;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .cal-day{aspect-ratio:1;border-radius:var(--radius-sm);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;}
+  .cal-day:hover{border-color:var(--border2);background:var(--surface2);}
+  .cal-day.today{border-color:rgba(57,224,122,0.4);}
+  .cal-day.has-entry{background:var(--accent-dimmer);border-color:rgba(57,224,122,0.2);}
+  .cal-day.negative{background:var(--danger-dim);border-color:rgba(255,94,94,0.2);}
+  .cal-day.empty{border-color:transparent;pointer-events:none;}
+  .day-num{font-size:12px;color:var(--text);font-family:var(--mono);}
+  .cal-day.has-entry .day-num{color:var(--accent);}
+  .cal-day.negative .day-num{color:var(--danger);}
+  .day-dot{width:4px;height:4px;border-radius:50%;background:var(--accent);margin-top:2px;}
+  .cal-day.negative .day-dot{background:var(--danger);}
+
+  .log-section-label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:8px;margin:10px 0 6px;}
+  .log-section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+  .day-total-badge{font-family:var(--mono);font-size:10px;color:var(--muted2);}
+  .log-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:var(--radius-sm);gap:8px;margin-bottom:3px;background:var(--surface2);}
+  .log-left{flex:1;min-width:0;}
+  .log-time{font-family:var(--mono);font-size:10px;color:var(--muted2);}
+  .log-note{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .log-right{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+  .log-amt{font-family:var(--mono);font-size:13px;font-weight:500;}
+  .log-amt.pos{color:var(--accent);} .log-amt.neg{color:var(--danger);}
+  .log-empty{font-size:13px;color:var(--muted);padding:1rem 0;}
+  .day-summary-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+
+  .history-group{margin-bottom:6px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
+  .history-group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--surface2);transition:background 0.15s;}
+  .history-group-header:hover{background:var(--surface);}
+  .history-group-date{font-family:var(--mono);font-size:12px;color:var(--text);font-weight:500;}
+  .history-group-meta{font-size:11px;color:var(--muted);margin-top:1px;}
+  .history-group-right{display:flex;align-items:center;gap:10px;}
+  .history-sum{font-family:var(--mono);font-size:13px;font-weight:500;}
+  .history-sum.pos{color:var(--accent);} .history-sum.neg{color:var(--danger);}
+  .chevron{font-size:9px;color:var(--muted);transition:transform 0.2s;}
+  .history-group.collapsed .chevron{transform:rotate(-90deg);}
+  .history-entries{padding:8px 14px 10px;border-top:1px solid var(--border);}
+  .history-group.collapsed .history-entries{display:none;}
+  .history-entry{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:var(--radius-sm);background:var(--surface);margin-bottom:3px;}
+  .history-entry-left{flex:1;}
+  .history-entry-time{font-family:var(--mono);font-size:10px;color:var(--muted2);}
+  .history-entry-note{font-size:12px;color:var(--text);}
+  .history-entry-amt{font-family:var(--mono);font-size:13px;font-weight:500;}
+  .history-entry-amt.pos{color:var(--accent);} .history-entry-amt.neg{color:var(--danger);}
+  .history-empty{font-size:13px;color:var(--muted);text-align:center;padding:3rem 0;}
+  .history-search{margin-bottom:1rem;} .history-search input{width:100%;}
+  .history-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:1.25rem;}
+
+  .danger-btn{background:transparent;border:1px solid rgba(255,94,94,0.2);border-radius:var(--radius-sm);color:var(--danger);font-size:12px;padding:6px 14px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;opacity:0.7;}
+  .danger-btn:hover{background:var(--danger-dim);opacity:1;}
+  .export-btn{background:transparent;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--muted);font-size:12px;padding:6px 14px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;}
+  .export-btn:hover{color:var(--text);background:var(--surface2);}
+
+  .footer{text-align:center;font-size:11px;color:var(--muted2);margin-top:3rem;font-family:var(--mono);}
+
+  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;align-items:center;justify-content:center;padding:1rem;}
+  .modal-backdrop.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:1.5rem;width:100%;max-width:440px;max-height:80vh;overflow-y:auto;}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;}
+  .modal-title{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--text);}
+  .modal-close{background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:0 4px;}
+
+  /* Sync setup info box */
+  .info-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;}
+  .info-box strong{color:var(--text);}
+  .info-box code{font-family:var(--mono);font-size:11px;background:var(--surface);padding:1px 5px;border-radius:4px;color:var(--accent);}
+</style>
+</head>
+<body>
+
+<!-- MAIN APP — loads immediately, no login required -->
+<div id="mainApp" class="app">
+
+  <div class="header">
+    <div class="header-left">
+      <h1>$85K TRACKER</h1>
+      <p>Your personalized income goal dashboard</p>
+    </div>
+    <div id="headerBadge" class="header-badge">0% complete</div>
+  </div>
+
+  <!-- Sync bar -->
+  <div class="sync-bar">
+    <div class="sync-status">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncLabel">Local — data saved in this browser</span>
+    </div>
+    <div class="sync-actions">
+      <button class="sync-btn" id="syncNowBtn" onclick="syncNow()" style="display:none;">&#8635; Sync now</button>
+      <button class="sync-btn" id="signInBtn" onclick="signIn()" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign in to sync
+      </button>
+      <button class="sync-btn secondary" id="signOutBtn" onclick="signOut()" style="display:none;">Sign out</button>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('log',this)">Log Entry</button>
+    <button class="nav-tab" onclick="showPage('history',this)">History <span class="tab-count" id="historyCount">0</span></button>
+    <button class="nav-tab" onclick="showPage('settings',this)">Settings</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="metrics" id="metrics"></div>
+    <div class="progress-wrap">
+      <div class="progress-header"><span id="progressText">$0 of $85,000</span><strong id="progressPct">0%</strong></div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="cal-nav">
+        <button class="btn btn-sm" onclick="prevMonth()">&#8592;</button>
+        <span class="cal-nav-title" id="calTitle"></span>
+        <button class="btn btn-sm" onclick="nextMonth()">&#8594;</button>
+      </div>
+      <div class="cal-headers" id="calHeaders"></div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recent entries (today &amp; yesterday)</div>
+      <div id="recentLog"></div>
+    </div>
+  </div>
+
+  <!-- LOG ENTRY -->
+  <div class="page" id="page-log">
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-title">Add entry</div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchInputTab('manual',this)">Manual</button>
+        <button class="tab-btn" onclick="switchInputTab('hourly',this)">Hourly calculator</button>
+      </div>
+      <div id="tab-manual">
+        <div class="form-row"><label>Date</label><input type="date" id="entryDate"></div>
+        <div class="form-row"><label>Amount ($)</label><input type="number" id="entryAmt" placeholder="e.g. 150 or -50"></div>
+        <div class="form-row"><label>Note (optional)</label><input type="text" id="entryNote" placeholder="e.g. client payment, tips..."></div>
+      </div>
+      <div id="tab-hourly" style="display:none">
+        <div class="form-row"><label>Date</label><input type="date" id="hourlyDate"></div>
+        <div class="form-row"><label>Hourly rate ($)</label><input type="number" id="hourlyRate" value="20" oninput="updateHourly()"></div>
+        <div class="form-row"><label>Hours worked</label><input type="number" id="hoursWorked" placeholder="e.g. 8" step="0.5" oninput="updateHourly()"></div>
+        <div class="hourly-result" id="hourlyResult"></div>
+      </div>
+      <button class="btn btn-accent" onclick="logEntry()">Add entry</button>
+      <div class="entry-msg" id="entryMsg"></div>
+    </div>
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-title">Today's entries</div>
+      <div id="todayLog"></div>
+    </div>
+    <div class="card" id="yesterdayCard" style="display:none;">
+      <div class="card-title">Yesterday's entries</div>
+      <div id="yesterdayLog"></div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="page" id="page-history">
+    <div class="history-stats" id="historyStats"></div>
+    <div class="card">
+      <div class="card-title">All past entries — older than 2 days</div>
+      <div class="history-search"><input type="text" id="historySearch" placeholder="Search by date or note..." oninput="renderHistory()"></div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Goal settings</div>
+        <div class="form-row"><label>Goal ($)</label><input type="number" id="goalInput" value="85000" min="0"></div>
+        <div class="form-row"><label>Years</label><input type="number" id="yearsInput" value="3" min="1" max="30"></div>
+        <div class="form-row"><label>Starting balance ($)</label><input type="number" id="startInput" value="0"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-accent" onclick="applySettings()">Apply settings</button>
+          <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Danger zone</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:1rem;line-height:1.6;">Permanently delete all entries and history. Cannot be undone.</p>
+        <button class="danger-btn" onclick="clearAllData()">Clear all data</button>
+      </div>
+    </div>
+
+    <!-- Cross-device sync section -->
+    <div class="card" style="margin-top:0;">
+      <div class="card-title">Cross-device sync</div>
+      <div id="syncSettingsContent"></div>
+    </div>
+  </div>
+
+  <div class="footer" id="footerText">$85K TRACKER &mdash; data saved in this browser</div>
+</div>
+
+<!-- Day modal -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async></script>
+
+<script>
+const GOOGLE_CLIENT_ID = '733172686222-tfb00tdm5ulvi387rshbc50eqdspji0q.apps.googleusercontent.com';
+const DRIVE_FILE_NAME  = '85k-tracker-data.json';
+const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.file';
+const LOCAL_KEY        = 'goalTracker_v3';
+
+let accessToken = null;
+let driveFileId = null;
+let useLocalOnly = true;
+let syncTimer    = null;
+let gsiReady     = false;
+
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+let state = {
+  goal:85000, years:3, startBalance:0,
+  entries:{}, history:{}, deletedIds:[],
+  calYear:new Date().getFullYear(), calMonth:new Date().getMonth()
+};
+
+const todayStr   = () => new Date().toISOString().split('T')[0];
+const yesterdayStr = () => { const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0]; };
+const dateIsOld  = k  => { const c=new Date(); c.setDate(c.getDate()-2); return new Date(k)<c; };
+const genId      = ()  => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const fmt        = n   => n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtSigned  = n   => (n>=0?'+':'')+`$${fmt(Math.abs(n))}`;
+
+// ── Sync status UI ──
+function setSyncStatus(type, msg) {
+  const dot=document.getElementById('syncDot');
+  const lbl=document.getElementById('syncLabel');
+  dot.className='sync-dot'+(type?' '+type:'');
+  lbl.textContent=msg;
+}
+
+function updateSyncUI(signedIn) {
+  document.getElementById('signInBtn').style.display  = signedIn ? 'none' : '';
+  document.getElementById('signOutBtn').style.display = signedIn ? '' : 'none';
+  document.getElementById('syncNowBtn').style.display = signedIn ? '' : 'none';
+  renderSyncSettings(signedIn);
+}
+
+function renderSyncSettings(signedIn) {
+  const el = document.getElementById('syncSettingsContent');
+  if (!el) return;
+  if (signedIn) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--muted);line-height:1.7;">
+      Signed in with Google. Your data syncs automatically to <code style="font-family:var(--mono);font-size:11px;color:var(--accent);background:var(--surface2);padding:1px 5px;border-radius:4px;">85k-tracker-data.json</code> in your Google Drive.
+      Open this file in any browser, sign in, and your data will load automatically.
+    </p>
+    <div style="margin-top:12px;">
+      <button class="sync-btn" onclick="syncNow()" style="margin-right:8px;">&#8635; Sync now</button>
+      <button class="sync-btn secondary" onclick="signOut()">Sign out</button>
+    </div>`;
+  } else {
+    el.innerHTML = `<p style="font-size:13px;color:var(--muted);line-height:1.7;">
+      Sign in with Google to sync your data across all your devices. Your data is stored privately in your own Google Drive — never shared.
+    </p>
+    <div style="margin-top:12px;">
+      <button class="sync-btn" id="settingsSignInBtn" onclick="signIn()">
+        <svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+    <div class="info-box" style="margin-top:12px;">
+      <strong>To enable cross-device sync:</strong> you need to add <code>${location.origin || location.href.split('/').slice(0,3).join('/')}</code> as an
+      Authorized JavaScript Origin in your Google Cloud Console under
+      APIs &amp; Services → Credentials → your OAuth Client ID.
+    </div>`;
+  }
+}
+
+// ── Google Sign-In ──
+function signIn() {
+  if (!window.google) {
+    alert('Google sign-in is not available. Make sure you have an internet connection and reload the page.\n\nIf you opened this file from your desktop, try hosting it at a URL instead (e.g. GitHub Pages).');
+    return;
+  }
+  try {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: async (resp) => {
+        if (resp.error) {
+          setSyncStatus('error', 'Sign-in failed: ' + (resp.error_description || resp.error));
+          return;
+        }
+        accessToken = resp.access_token;
+        useLocalOnly = false;
+        localStorage.setItem('gat', accessToken);
+        updateSyncUI(true);
+        setSyncStatus('syncing', 'Connecting to Drive…');
+        await loadFromDrive();
+      }
+    });
+    client.requestAccessToken();
+  } catch(e) {
+    setSyncStatus('error', 'Sign-in error — see console');
+    console.error(e);
+  }
+}
+
+function signOut() {
+  accessToken = null;
+  driveFileId = null;
+  useLocalOnly = true;
+  localStorage.removeItem('gat');
+  updateSyncUI(false);
+  setSyncStatus('', 'Local — data saved in this browser');
+  document.getElementById('footerText').textContent = '$85K TRACKER — data saved in this browser';
+}
+
+// ── Drive API ──
+async function driveRequest(url, opts={}) {
+  const res = await fetch(url, {
+    ...opts,
+    headers: { 'Authorization':'Bearer '+accessToken, ...(opts.headers||{}) }
+  });
+  if (res.status===401) { setSyncStatus('error','Session expired — sign in again'); return null; }
+  return res;
+}
+
+async function findDriveFile() {
+  const res = await driveRequest(`https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILE_NAME}'+and+trashed=false&fields=files(id,name)`);
+  if (!res) return null;
+  const data = await res.json();
+  return data.files && data.files.length>0 ? data.files[0].id : null;
+}
+
+async function readDriveFile(fileId) {
+  const res = await driveRequest(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+  if (!res||!res.ok) return null;
+  try { return await res.json(); } catch(e) { return null; }
+}
+
+async function writeDriveFile(fileId, data) {
+  const body = JSON.stringify(data);
+  if (!fileId) {
+    const boundary='-------boundary';
+    const meta=JSON.stringify({name:DRIVE_FILE_NAME,mimeType:'application/json'});
+    const mp=`--${boundary}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
+    const res=await driveRequest(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`,{method:'POST',headers:{'Content-Type':`multipart/related; boundary="${boundary}"`},body:mp});
+    if (!res||!res.ok) return null;
+    const d=await res.json(); return d.id;
+  } else {
+    const res=await driveRequest(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,{method:'PATCH',headers:{'Content-Type':'application/json'},body});
+    return res&&res.ok ? fileId : null;
+  }
+}
+
+async function loadFromDrive() {
+  setSyncStatus('syncing','Loading from Drive…');
+  try {
+    driveFileId = await findDriveFile();
+    if (driveFileId) {
+      const remote = await readDriveFile(driveFileId);
+      if (remote) { mergeState(remote); saveLocal(); render(); }
+    }
+    const t=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    setSyncStatus('synced',`Synced · ${t}`);
+    document.getElementById('footerText').textContent='$85K TRACKER — synced to Google Drive';
+  } catch(e) {
+    setSyncStatus('error','Sync failed — using local data');
+  }
+}
+
+async function saveToDrive() {
+  if (useLocalOnly||!accessToken) return;
+  setSyncStatus('syncing','Saving…');
+  try {
+    archiveOld();
+    const newId = await writeDriveFile(driveFileId, state);
+    if (newId) {
+      driveFileId = newId;
+      const t=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+      setSyncStatus('synced',`Synced · ${t}`);
+    } else {
+      setSyncStatus('error','Save failed — kept locally');
+    }
+  } catch(e) {
+    setSyncStatus('error','Save failed — kept locally');
+  }
+}
+
+function mergeState(remote) {
+  if (remote.goal!==undefined) state.goal=remote.goal;
+  if (remote.years!==undefined) state.years=remote.years;
+  if (remote.startBalance!==undefined) state.startBalance=remote.startBalance;
+  const mergeDay=(local,remote)=>{
+    const m={...local};
+    for(const[d,items] of Object.entries(remote||{})){
+      if(!m[d]) m[d]=[];
+      const ex=new Set(m[d].map(e=>e.id));
+      for(const e of items) if(!ex.has(e.id)) m[d].push(e);
+    }
+    return m;
+  };
+  state.entries=mergeDay(state.entries,remote.entries);
+  state.history=mergeDay(state.history,remote.history);
+  const del=new Set([...state.deletedIds,...(remote.deletedIds||[])]);
+  state.deletedIds=[...del];
+  for(const id of state.deletedIds){
+    for(const items of Object.values(state.entries)){const i=items.findIndex(e=>e.id===id);if(i>-1)items.splice(i,1);}
+    for(const items of Object.values(state.history)){const i=items.findIndex(e=>e.id===id);if(i>-1)items.splice(i,1);}
+  }
+  document.getElementById('goalInput').value=state.goal;
+  document.getElementById('yearsInput').value=state.years;
+  document.getElementById('startInput').value=state.startBalance;
+}
+
+async function syncNow() {
+  if (useLocalOnly||!accessToken) return;
+  await loadFromDrive();
+}
+
+// ── Local storage ──
+function loadLocalState() {
+  try {
+    const s=localStorage.getItem(LOCAL_KEY);
+    if(s){
+      const p=JSON.parse(s);
+      state=Object.assign(state,p);
+      if(!state.entries) state.entries={};
+      if(!state.history) state.history={};
+      if(!state.deletedIds) state.deletedIds=[];
+      // Migrate v2 single-entry format
+      for(const[k,v] of Object.entries(state.entries)) if(v&&!Array.isArray(v)) state.entries[k]=[{id:genId(),amount:v.amount,note:v.note||'',time:''}];
+      for(const[k,v] of Object.entries(state.history||{})) if(v&&!Array.isArray(v)) state.history[k]=[{id:genId(),amount:v.amount,note:v.note||'',time:''}];
+    }
+  } catch(e) {}
+  document.getElementById('goalInput').value=state.goal;
+  document.getElementById('yearsInput').value=state.years;
+  document.getElementById('startInput').value=state.startBalance;
+}
+
+function saveLocal() { try{localStorage.setItem(LOCAL_KEY,JSON.stringify(state));}catch(e){} }
+
+function save() {
+  archiveOld();
+  saveLocal();
+  clearTimeout(syncTimer);
+  if(!useLocalOnly&&accessToken) syncTimer=setTimeout(saveToDrive,1500);
+}
+
+// ── Data logic ──
+function archiveOld() {
+  for(const[k,items] of Object.entries(state.entries)){
+    if(!dateIsOld(k)) continue;
+    const toArchive=items.filter(e=>!state.deletedIds.includes(e.id));
+    if(toArchive.length){
+      if(!state.history[k]) state.history[k]=[];
+      const ex=new Set(state.history[k].map(e=>e.id));
+      for(const e of toArchive) if(!ex.has(e.id)) state.history[k].push(e);
+    }
+    delete state.entries[k];
+  }
+}
+
+function allActive()  { const r=[]; for(const[d,items] of Object.entries(state.entries)) for(const e of items) r.push({...e,date:d}); return r; }
+function allHistory() { const r=[]; for(const[d,items] of Object.entries(state.history)) for(const e of items) r.push({...e,date:d}); return r; }
+function totalEarned(){ return allActive().reduce((s,e)=>s+e.amount,0)+allHistory().reduce((s,e)=>s+e.amount,0)+state.startBalance; }
+
+function applySettings(){
+  state.goal=parseFloat(document.getElementById('goalInput').value)||85000;
+  state.years=parseFloat(document.getElementById('yearsInput').value)||3;
+  state.startBalance=parseFloat(document.getElementById('startInput').value)||0;
+  save(); render();
+}
+
+// ── Render ──
+function render(){ renderMetrics(); renderProgress(); renderCalendar(); renderRecentLog(); renderTodayLog(); renderYesterdayLog(); renderHistory(); updateHistoryCount(); }
+
+function renderMetrics(){
+  const earned=totalEarned(),remaining=Math.max(0,state.goal-earned);
+  const totalDays=Math.round(state.years*365);
+  const allKeys=[...Object.keys(state.entries),...Object.keys(state.history)].sort();
+  let daysPassed=allKeys.length>0?Math.round((new Date()-new Date(allKeys[0]))/86400000)+1:0;
+  const daysLeft=Math.max(0,totalDays-daysPassed);
+  const dailyNeeded=daysLeft>0?remaining/daysLeft:0;
+  const pct=Math.min(100,(earned/state.goal)*100);
+  const todayItems=state.entries[todayStr()]||[];
+  const todayTotal=todayItems.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('metrics').innerHTML=[
+    ['Total earned','$'+fmt(earned),'green'],
+    ['Remaining','$'+fmt(remaining),'red'],
+    ['Needed/day','$'+dailyNeeded.toFixed(2),''],
+    ['Days left',daysLeft.toLocaleString(),''],
+    ['Complete',pct.toFixed(1)+'%',pct>=100?'green':''],
+    ['Today',todayItems.length?'$'+fmt(todayTotal):'—',todayItems.length?(todayTotal>=0?'green':'red'):''],
+  ].map(([l,v,c])=>`<div class="metric"><div class="metric-label">${l}</div><div class="metric-value ${c}">${v}</div></div>`).join('');
+  document.getElementById('headerBadge').textContent=pct.toFixed(1)+'% complete';
+}
+
+function renderProgress(){
+  const earned=totalEarned(),pct=Math.min(100,(earned/state.goal)*100);
+  document.getElementById('progressFill').style.width=pct.toFixed(2)+'%';
+  document.getElementById('progressText').textContent='$'+fmt(earned)+' of $'+state.goal.toLocaleString();
+  document.getElementById('progressPct').textContent=pct.toFixed(1)+'%';
+}
+
+function renderCalendar(){
+  const y=state.calYear,m=state.calMonth;
+  document.getElementById('calTitle').textContent=MONTHS[m]+' '+y;
+  document.getElementById('calHeaders').innerHTML=DAYS.map(d=>`<div class="cal-hdr">${d}</div>`).join('');
+  const first=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate(),ts=todayStr();
+  const allDays={};
+  for(const[d,items] of Object.entries(state.entries)) allDays[d]=[...(allDays[d]||[]),...items];
+  for(const[d,items] of Object.entries(state.history)) allDays[d]=[...(allDays[d]||[]),...items];
+  let html=Array(first).fill('<div class="cal-day empty"></div>').join('');
+  for(let d=1;d<=dim;d++){
+    const k=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const items=allDays[k]||[],tot=items.reduce((s,e)=>s+e.amount,0),has=items.length>0;
+    const cls=[k===ts?'today':'',has&&tot>=0?'has-entry':'',has&&tot<0?'negative':''].filter(Boolean).join(' ');
+    html+=`<div class="cal-day ${cls}" onclick="openDayModal('${k}')" title="${has?items.length+' entr'+(items.length===1?'y':'ies')+' · $'+tot.toFixed(2):k}"><span class="day-num">${d}</span>${has?'<span class="day-dot"></span>':''}</div>`;
+  }
+  document.getElementById('calGrid').innerHTML=html;
+}
+
+function makeEntryHTML(e,dateKey,canDelete){
+  const pos=e.amount>=0;
+  const del=canDelete?`<button class="btn btn-sm" onclick="deleteEntry('${dateKey}','${e.id}')">×</button>`:'';
+  return `<div class="log-item"><div class="log-left">${e.time?`<div class="log-time">${e.time}</div>`:''}<div class="log-note">${e.note||'(no note)'}</div></div><div class="log-right"><span class="log-amt ${pos?'pos':'neg'}">${pos?'+':''}$${e.amount.toFixed(2)}</span>${del}</div></div>`;
+}
+
+function renderDayBlock(items,dateKey,containerId,canDelete){
+  const el=document.getElementById(containerId);
+  if(!items||!items.length){el.innerHTML='<div class="log-empty">No entries.</div>';return;}
+  const tot=items.reduce((s,e)=>s+e.amount,0);
+  el.innerHTML=`<div class="day-summary-row"><span style="font-size:11px;color:var(--muted);">${items.length} entr${items.length===1?'y':'ies'}</span><span class="log-amt ${tot>=0?'pos':'neg'}" style="font-size:12px;">Day total: ${fmtSigned(tot)}</span></div>`+items.map(e=>makeEntryHTML(e,dateKey,canDelete)).join('');
+}
+
+function renderRecentLog(){
+  const t=todayStr(),y=yesterdayStr();
+  const ti=state.entries[t]||[],yi=state.entries[y]||[];
+  if(!ti.length&&!yi.length){document.getElementById('recentLog').innerHTML='<div class="log-empty">No entries in the last 2 days. Go to Log Entry to add some.</div>';return;}
+  let html='';
+  if(ti.length){const tot=ti.reduce((s,e)=>s+e.amount,0);html+=`<div class="log-section-label">Today <span class="day-total-badge">${fmtSigned(tot)}</span></div>`+ti.map(e=>makeEntryHTML(e,t,false)).join('');}
+  if(yi.length){const tot=yi.reduce((s,e)=>s+e.amount,0);html+=`<div class="log-section-label" style="margin-top:12px;">Yesterday <span class="day-total-badge">${fmtSigned(tot)}</span></div>`+yi.map(e=>makeEntryHTML(e,y,false)).join('');}
+  document.getElementById('recentLog').innerHTML=html;
+}
+
+function renderTodayLog(){renderDayBlock(state.entries[todayStr()]||[],todayStr(),'todayLog',true);}
+function renderYesterdayLog(){
+  const y=yesterdayStr(),items=state.entries[y]||[];
+  document.getElementById('yesterdayCard').style.display=items.length?'':'none';
+  if(items.length) renderDayBlock(items,y,'yesterdayLog',true);
+}
+
+function updateHistoryCount(){document.getElementById('historyCount').textContent=allHistory().length;}
+
+function renderHistory(){
+  const q=(document.getElementById('historySearch')?.value||'').toLowerCase();
+  const dates=Object.keys(state.history).sort().reverse();
+  const allH=allHistory(),hTot=allH.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('historyStats').innerHTML=[
+    ['Archived days',dates.length],['Total entries',allH.length],['History total','$'+fmt(hTot)],
+  ].map(([l,v])=>`<div class="metric"><div class="metric-label">${l}</div><div class="metric-value">${v}</div></div>`).join('');
+  if(!dates.length){document.getElementById('historyList').innerHTML='<div class="history-empty">No history yet. Entries automatically move here after 2 days.</div>';return;}
+  let html='';
+  for(const date of dates){
+    const items=state.history[date];
+    if(!items||!items.length) continue;
+    const filtered=q?items.filter(e=>date.includes(q)||(e.note||'').toLowerCase().includes(q)):items;
+    if(!filtered.length) continue;
+    const tot=filtered.reduce((s,e)=>s+e.amount,0),pos=tot>=0;
+    const dl=new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    html+=`<div class="history-group" id="hg-${date}"><div class="history-group-header" onclick="toggleHG('${date}')"><div><div class="history-group-date">${dl}</div><div class="history-group-meta">${filtered.length} entr${filtered.length===1?'y':'ies'}</div></div><div class="history-group-right"><span class="history-sum ${pos?'pos':'neg'}">${fmtSigned(tot)}</span><span class="chevron">&#9660;</span></div></div><div class="history-entries">`
+      +filtered.map(e=>{const ep=e.amount>=0;return `<div class="history-entry"><div class="history-entry-left">${e.time?`<div class="history-entry-time">${e.time}</div>`:''}<div class="history-entry-note">${e.note||'(no note)'}</div></div><span class="history-entry-amt ${ep?'pos':'neg'}">${ep?'+':''}$${e.amount.toFixed(2)}</span></div>`;}).join('')
+      +`</div></div>`;
+  }
+  document.getElementById('historyList').innerHTML=html||'<div class="history-empty">No results match your search.</div>';
+}
+
+function toggleHG(date){document.getElementById('hg-'+date).classList.toggle('collapsed');}
+
+function logEntry(){
+  const isH=document.getElementById('tab-hourly').style.display!=='none';
+  let date,amount,note;
+  if(!isH){
+    date=document.getElementById('entryDate').value;
+    amount=parseFloat(document.getElementById('entryAmt').value);
+    note=document.getElementById('entryNote').value.trim();
+  } else {
+    date=document.getElementById('hourlyDate').value;
+    const rate=parseFloat(document.getElementById('hourlyRate').value)||0;
+    const hrs=parseFloat(document.getElementById('hoursWorked').value)||0;
+    amount=parseFloat((rate*hrs).toFixed(2));
+    note=`${hrs}h @ $${rate}/hr`;
+  }
+  const msg=document.getElementById('entryMsg');
+  if(!date){msg.style.color='var(--danger)';msg.textContent='Please select a date.';return;}
+  if(isNaN(amount)){msg.style.color='var(--danger)';msg.textContent='Please enter a valid amount.';return;}
+  const time=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const entry={id:genId(),amount,note,time};
+  if(dateIsOld(date)){
+    if(!state.history[date]) state.history[date]=[];
+    state.history[date].push(entry);
+  } else {
+    if(!state.entries[date]) state.entries[date]=[];
+    state.entries[date].push(entry);
+  }
+  save(); render();
+  msg.style.color='var(--accent)'; msg.textContent=`Logged $${amount.toFixed(2)} on ${date}`;
+  document.getElementById('entryAmt').value='';
+  document.getElementById('entryNote').value='';
+  document.getElementById('hoursWorked').value='';
+  document.getElementById('hourlyResult').textContent='';
+  setTimeout(()=>msg.textContent='',3000);
+  if(document.getElementById('modalBackdrop').classList.contains('open')) openDayModal(date);
+}
+
+function deleteEntry(dateKey,id){
+  if(!confirm('Delete this entry?')) return;
+  state.deletedIds.push(id);
+  if(state.entries[dateKey]){state.entries[dateKey]=state.entries[dateKey].filter(e=>e.id!==id);if(!state.entries[dateKey].length)delete state.entries[dateKey];}
+  if(state.history[dateKey]){state.history[dateKey]=state.history[dateKey].filter(e=>e.id!==id);if(!state.history[dateKey].length)delete state.history[dateKey];}
+  save(); render();
+  if(document.getElementById('modalBackdrop').classList.contains('open')) openDayModal(dateKey);
+}
+
+function openDayModal(dateKey){
+  const ai=state.entries[dateKey]||[],hi=state.history[dateKey]||[],items=[...ai,...hi];
+  document.getElementById('modalBackdrop').classList.add('open');
+  const dl=new Date(dateKey+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('modalTitle').textContent=dl;
+  if(!items.length){document.getElementById('modalContent').innerHTML='<div class="log-empty">No entries for this day.</div>';return;}
+  const tot=items.reduce((s,e)=>s+e.amount,0),pos=tot>=0;
+  const canDel=!dateIsOld(dateKey);
+  let html=`<div class="day-summary-row" style="margin-bottom:10px;"><span style="font-size:11px;color:var(--muted);">${items.length} entr${items.length===1?'y':'ies'}</span><span class="log-amt ${pos?'pos':'neg'}">Total: ${fmtSigned(tot)}</span></div>`+items.map(e=>makeEntryHTML(e,dateKey,canDel)).join('');
+  if(dateIsOld(dateKey)) html+=`<div style="font-size:11px;color:var(--muted);margin-top:10px;">Archived — entries cannot be deleted from history.</div>`;
+  document.getElementById('modalContent').innerHTML=html;
+}
+
+function closeModal(e){if(!e||e.target===document.getElementById('modalBackdrop'))document.getElementById('modalBackdrop').classList.remove('open');}
+function switchInputTab(tab,btn){document.getElementById('tab-manual').style.display=tab==='manual'?'':'none';document.getElementById('tab-hourly').style.display=tab==='hourly'?'':'none';document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));btn.classList.add('active');}
+function updateHourly(){const r=parseFloat(document.getElementById('hourlyRate').value)||0,h=parseFloat(document.getElementById('hoursWorked').value)||0;document.getElementById('hourlyResult').textContent=(r&&h)?`${h}h × $${r}/hr = $${(r*h).toFixed(2)}`:''}
+function prevMonth(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}save();renderCalendar();}
+function nextMonth(){state.calMonth++;if(state.calMonth>11){state.calMonth=0;state.calYear++;}save();renderCalendar();}
+function showPage(name,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');btn.classList.add('active');}
+
+function clearAllData(){
+  if(!confirm('Clear ALL data? This cannot be undone.')) return;
+  state={goal:85000,years:3,startBalance:0,entries:{},history:{},deletedIds:[],calYear:new Date().getFullYear(),calMonth:new Date().getMonth()};
+  document.getElementById('goalInput').value=state.goal;
+  document.getElementById('yearsInput').value=state.years;
+  document.getElementById('startInput').value=0;
+  save(); render();
+}
+
+function exportCSV(){
+  const all=[...allActive(),...allHistory()].sort((a,b)=>a.date.localeCompare(b.date));
+  if(!all.length){alert('No entries to export.');return;}
+  const rows=[['Date','Time','Amount','Note'],...all.map(e=>[e.date,e.time||'',e.amount,e.note||''])];
+  const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='85k-tracker-export.csv';
+  a.click();
+}
+
+// ── Init ──
+window.addEventListener('load', () => {
+  const t=todayStr();
+  document.getElementById('entryDate').value=t;
+  document.getElementById('hourlyDate').value=t;
+
+  // Load local data immediately — app works right away
+  loadLocalState();
+  archiveOld();
+  render();
+  updateSyncUI(false);
+
+  // Try to restore Google session silently
+  const savedToken = localStorage.getItem('gat');
+  if (savedToken) {
+    accessToken = savedToken;
+    useLocalOnly = false;
+    updateSyncUI(true);
+    setSyncStatus('syncing','Reconnecting to Drive…');
+    loadFromDrive().catch(()=>setSyncStatus('error','Could not reconnect — using local data'));
+  }
+});
+</script>
+</body>
+</html>
